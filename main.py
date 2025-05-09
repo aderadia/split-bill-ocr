@@ -1,7 +1,5 @@
 from fastapi import FastAPI, HTTPException, File, UploadFile
 from pydantic import BaseModel
-from dotenv import load_dotenv
-from openai import OpenAI
 import easyocr
 import base64
 from PIL import Image
@@ -10,9 +8,6 @@ from io import BytesIO
 # Inisialisasi OCR reader baca english dan indo
 reader = easyocr.Reader(['en', 'id'])
 
-# siapin open ai key
-load_dotenv()
-client = OpenAI(api_key="OPEN_AI_KEY")
 app = FastAPI()
 
 # Request ocr base64 text
@@ -53,53 +48,3 @@ async def ocr_image(request: OCRText):
     text = " ".join(result)
 
     return {"raw_text": text}
-
-
-# request untuk formating ocr text
-class OCRResult(BaseModel):
-    raw_text:str
-
-
-@app.post("/format-bill")
-async def formatBill(data: OCRResult):
-    print(f"Client API Key: {client.api_key}")
-
-    prompt = f"""
-            Berikut adalah hasil dari OCR struk pembelian
-            {data.raw_text}
-            Tolong ekstrak data ini dalam format JSON seperti berikut:
-            
-            {{
-                "totalAmount" : "",
-                "subTotal" : "",
-                "discount" : "",
-                "tax" : "",
-                "serviceFee" : "",
-                "items" : [
-                    {{
-                        "name" : "",
-                        "quantity" : "",
-                        "price" : "",
-                        "subItems" : [
-                            {{
-                                "name" : "",
-                                "quantity" : "",
-                                "price" : ""
-                            }}
-                        ]
-                    }}
-                ]
-            }}
-            """
-
-    try:
-        # kirim propmt ke gpt
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
-        )
-        content = response.choices[0].message.content
-        return {"result": client.api_key}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
